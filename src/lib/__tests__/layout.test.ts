@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { WORKFLOW_SAMPLES } from '../../data/samples';
-import { buildWorkflowGraph } from '../layout';
+import type { AppNode } from '../../types/workflow';
+import { buildWorkflowGraph, LAYOUT_CONSTANTS } from '../layout';
 import { parseWorkflowJson } from '../parser';
 
 function assertGraphInvariants(graph: ReturnType<typeof buildWorkflowGraph>) {
   const indexById = new Map<string, number>();
   graph.nodes.forEach((n, idx) => indexById.set(n.id, idx));
+  const childrenByParent = new Map<string, AppNode[]>();
 
   // Every parent must precede its children and all positions/sizes must be finite
   for (let i = 0; i < graph.nodes.length; i++) {
@@ -19,11 +21,50 @@ function assertGraphInvariants(graph: ReturnType<typeof buildWorkflowGraph>) {
       const parentIdx = indexById.get(node.parentId);
       expect(parentIdx).toBeDefined();
       expect(parentIdx!).toBeLessThan(i);
+
+      const list = childrenByParent.get(node.parentId);
+      if (list) {
+        list.push(node);
+      } else {
+        childrenByParent.set(node.parentId, [node]);
+      }
     }
   }
 
   // Every edge source & target must exist in nodes, and edge zIndex > parent container zIndex
   const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
+
+  for (const [parentId, children] of childrenByParent.entries()) {
+    const parent = nodeById.get(parentId)!;
+    const minY = Math.min(...children.map((c) => c.position.y));
+
+    if (parent.type === 'containerNode') {
+      expect(minY).toBe(
+        LAYOUT_CONSTANTS.CONTAINER_HEADER_H + LAYOUT_CONSTANTS.CONTAINER_PAD_TOP,
+      );
+      for (const child of children) {
+        expect(parent.height! - (child.position.y + child.height!)).toBeGreaterThanOrEqual(
+          LAYOUT_CONSTANTS.CONTAINER_PAD_BOTTOM,
+        );
+        expect(child.position.x).toBeGreaterThanOrEqual(LAYOUT_CONSTANTS.CONTAINER_PAD_X);
+        expect(parent.width! - (child.position.x + child.width!)).toBeGreaterThanOrEqual(
+          LAYOUT_CONSTANTS.CONTAINER_PAD_X,
+        );
+      }
+    } else if (parent.type === 'branchLane') {
+      expect(minY).toBe(LAYOUT_CONSTANTS.LANE_HEADER_H + LAYOUT_CONSTANTS.LANE_PAD_TOP);
+      for (const child of children) {
+        expect(parent.height! - (child.position.y + child.height!)).toBeGreaterThanOrEqual(
+          LAYOUT_CONSTANTS.LANE_PAD_BOTTOM,
+        );
+        expect(child.position.x).toBeGreaterThanOrEqual(LAYOUT_CONSTANTS.LANE_PAD_X);
+        expect(parent.width! - (child.position.x + child.width!)).toBeGreaterThanOrEqual(
+          LAYOUT_CONSTANTS.LANE_PAD_X,
+        );
+      }
+    }
+  }
+
   for (const edge of graph.edges) {
     const source = nodeById.get(edge.source);
     const target = nodeById.get(edge.target);
@@ -155,5 +196,85 @@ describe('buildWorkflowGraph', () => {
       'action:Validate_High_Value_Order',
       'action:Validate_High_Value_Order/True/Route_Payment_Method',
     ]);
+  });
+
+  it('applies symmetric top and bottom padding inside Scope containers, If containers, and branch lanes', () => {
+    const json = JSON.stringify({
+      definition: {
+        triggers: { manual: { type: 'Request' } },
+        actions: {
+          My_Scope: {
+            type: 'Scope',
+            runAfter: {},
+            actions: {
+              Scope_Step: { type: 'Compose', inputs: 'ok', runAfter: {} },
+            },
+          },
+          My_Condition: {
+            type: 'If',
+            runAfter: { My_Scope: ['Succeeded'] },
+            expression: { equals: [1, 1] },
+            actions: {
+              True_Step: { type: 'Compose', inputs: 'yes', runAfter: {} },
+            },
+            else: {
+              actions: {
+                False_Step: { type: 'Compose', inputs: 'no', runAfter: {} },
+              },
+            },
+          },
+        },
+      },
+      kind: 'Stateful',
+    });
+
+    const parsed = parseWorkflowJson(json);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const graph = buildWorkflowGraph(parsed.data, new Set(), null);
+    assertGraphInvariants(graph);
+
+    const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+
+    // Scope container & child
+    const scope = byId.get('action:My_Scope')!;
+    const scopeStep = byId.get('action:My_Scope/Scope_Step')!;
+    expect(scopeStep.position.y).toBe(
+      LAYOUT_CONSTANTS.CONTAINER_HEADER_H + LAYOUT_CONSTANTS.CONTAINER_PAD_TOP,
+    );
+    expect(scope.height! - (scopeStep.position.y + scopeStep.height!)).toBe(
+      LAYOUT_CONSTANTS.CONTAINER_PAD_BOTTOM,
+    );
+
+    // If container, branch lanes, and nested lane actions
+    const ifNode = byId.get('action:My_Condition')!;
+    const trueLane = byId.get('lane:My_Condition/True')!;
+    const falseLane = byId.get('lane:My_Condition/False')!;
+    const trueStep = byId.get('action:My_Condition/True/True_Step')!;
+    const falseStep = byId.get('action:My_Condition/False/False_Step')!;
+
+    expect(trueLane.position.y).toBe(
+      LAYOUT_CONSTANTS.CONTAINER_HEADER_H + LAYOUT_CONSTANTS.CONTAINER_PAD_TOP,
+    );
+    expect(falseLane.position.y).toBe(
+      LAYOUT_CONSTANTS.CONTAINER_HEADER_H + LAYOUT_CONSTANTS.CONTAINER_PAD_TOP,
+    );
+    expect(ifNode.height! - (trueLane.position.y + trueLane.height!)).toBe(
+      LAYOUT_CONSTANTS.CONTAINER_PAD_BOTTOM,
+    );
+
+    expect(trueStep.position.y).toBe(
+      LAYOUT_CONSTANTS.LANE_HEADER_H + LAYOUT_CONSTANTS.LANE_PAD_TOP,
+    );
+    expect(trueLane.height! - (trueStep.position.y + trueStep.height!)).toBe(
+      LAYOUT_CONSTANTS.LANE_PAD_BOTTOM,
+    );
+    expect(falseStep.position.y).toBe(
+      LAYOUT_CONSTANTS.LANE_HEADER_H + LAYOUT_CONSTANTS.LANE_PAD_TOP,
+    );
+    expect(falseLane.height! - (falseStep.position.y + falseStep.height!)).toBe(
+      LAYOUT_CONSTANTS.LANE_PAD_BOTTOM,
+    );
   });
 });

@@ -23,6 +23,12 @@
   --expr-text: #1d4ed8;
   --expr-border: #bfdbfe;
   --code-bg: #f8fafc;
+  --json-key: #0369a1;
+  --json-string: #c2410c;
+  --json-number: #047857;
+  --json-boolean: #7c3aed;
+  --json-null: #64748b;
+  --json-punct: #64748b;
 }
 
 [data-theme='dark'] {
@@ -49,6 +55,12 @@
   --expr-text: #7dd3fc;
   --expr-border: rgba(56, 189, 248, 0.35);
   --code-bg: #0b1222;
+  --json-key: #7dd3fc;
+  --json-string: #fdba74;
+  --json-number: #6ee7b7;
+  --json-boolean: #c4b5fd;
+  --json-null: #94a3b8;
+  --json-punct: #64748b;
 }
 
 *,
@@ -1379,6 +1391,32 @@ pre,
   font-size: 11.5px;
   line-height: 1.5;
   overflow-x: auto;
+}
+
+.json-tok--key {
+  color: var(--json-key);
+}
+
+.json-tok--string {
+  color: var(--json-string);
+}
+
+.json-tok--number {
+  color: var(--json-number);
+}
+
+.json-tok--boolean {
+  color: var(--json-boolean);
+  font-weight: 600;
+}
+
+.json-tok--null {
+  color: var(--json-null);
+  font-style: italic;
+}
+
+.json-tok--punctuation {
+  color: var(--json-punct);
 }
 
 /* Toast */

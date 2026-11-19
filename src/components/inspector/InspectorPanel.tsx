@@ -1,5 +1,5 @@
 import { Check, Copy, Info, X } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type {
   DetectedFormat,
   ParsedWorkflow,
@@ -9,6 +9,7 @@ import type {
 } from '../../types/workflow';
 import { ActionIcon } from '../common/ActionIcon';
 import { ExpressionValue } from './ExpressionValue';
+import { HighlightedJson } from './HighlightedJson';
 
 type InspectorTab = 'inputs' | 'settings' | 'raw';
 
@@ -54,9 +55,14 @@ export function InspectorPanel({
   const [activeTab, setActiveTab] = useState<InspectorTab>('inputs');
   const [copiedRaw, setCopiedRaw] = useState(false);
 
-  const handleCopyJson = async (data: unknown) => {
+  const rawJsonText = useMemo(() => {
+    if (mode !== 'node' || !nodeMeta || activeTab !== 'raw') return '';
+    return JSON.stringify({ [nodeMeta.key]: nodeMeta.raw }, null, 2);
+  }, [mode, nodeMeta, activeTab]);
+
+  const handleCopyJson = async (text: string) => {
     try {
-      await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+      await navigator.clipboard.writeText(text);
       setCopiedRaw(true);
       window.setTimeout(() => setCopiedRaw(false), 1600);
     } catch {
@@ -393,15 +399,13 @@ export function InspectorPanel({
               <button
                 type="button"
                 className="btn btn--ghost btn--sm"
-                onClick={() => handleCopyJson({ [nodeMeta.key]: nodeMeta.raw })}
+                onClick={() => handleCopyJson(rawJsonText)}
               >
                 {copiedRaw ? <Check size={14} /> : <Copy size={14} />}
                 <span>{copiedRaw ? 'Copied' : 'Copy'}</span>
               </button>
             </div>
-            <pre className="raw-json-pre">
-              {JSON.stringify({ [nodeMeta.key]: nodeMeta.raw }, null, 2)}
-            </pre>
+            <HighlightedJson json={rawJsonText} />
           </section>
         )}
       </div>

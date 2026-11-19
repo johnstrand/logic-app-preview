@@ -27,12 +27,14 @@ export const LAYOUT_CONSTANTS = {
   COLLAPSED_HEIGHT: 86,
   CONTAINER_HEADER_H: 54,
   CONTAINER_PAD_X: 24,
+  CONTAINER_PAD_TOP: 24,
   CONTAINER_PAD_BOTTOM: 24,
   MIN_CONTAINER_W: 308,
   EMPTY_SCOPE_W: 244,
   EMPTY_SCOPE_H: 64,
   LANE_HEADER_H: 36,
   LANE_PAD_X: 18,
+  LANE_PAD_TOP: 18,
   LANE_PAD_BOTTOM: 18,
   LANE_GAP: 24,
   MIN_LANE_W: 280,
@@ -447,6 +449,7 @@ export function buildWorkflowGraph(
             );
             const laneH =
               LAYOUT_CONSTANTS.LANE_HEADER_H +
+              LAYOUT_CONSTANTS.LANE_PAD_TOP +
               Math.max(LAYOUT_CONSTANTS.MIN_LANE_INNER_H, sub.height) +
               LAYOUT_CONSTANTS.LANE_PAD_BOTTOM;
             return {
@@ -469,6 +472,7 @@ export function buildWorkflowGraph(
           );
           const containerH =
             LAYOUT_CONSTANTS.CONTAINER_HEADER_H +
+            LAYOUT_CONSTANTS.CONTAINER_PAD_TOP +
             maxLaneH +
             LAYOUT_CONSTANTS.CONTAINER_PAD_BOTTOM;
 
@@ -509,7 +513,7 @@ export function buildWorkflowGraph(
               parentId: aId,
               position: {
                 x: cursorX,
-                y: LAYOUT_CONSTANTS.CONTAINER_HEADER_H,
+                y: LAYOUT_CONSTANTS.CONTAINER_HEADER_H + LAYOUT_CONSTANTS.CONTAINER_PAD_TOP,
               },
               width: lane.laneW,
               height: maxLaneH,
@@ -532,7 +536,7 @@ export function buildWorkflowGraph(
             };
 
             const childOffsetX = (lane.laneW - lane.sub.width) / 2;
-            const childOffsetY = LAYOUT_CONSTANTS.LANE_HEADER_H;
+            const childOffsetY = LAYOUT_CONSTANTS.LANE_HEADER_H + LAYOUT_CONSTANTS.LANE_PAD_TOP;
             const shiftedLaneChildren = reparentImmediateChildren(
               lane.sub.nodes,
               laneId,
@@ -573,6 +577,7 @@ export function buildWorkflowGraph(
           );
           const containerH =
             LAYOUT_CONSTANTS.CONTAINER_HEADER_H +
+            LAYOUT_CONSTANTS.CONTAINER_PAD_TOP +
             Math.max(LAYOUT_CONSTANTS.EMPTY_SCOPE_H, sub.height) +
             LAYOUT_CONSTANTS.CONTAINER_PAD_BOTTOM;
 
@@ -602,7 +607,8 @@ export function buildWorkflowGraph(
           };
 
           const childOffsetX = (containerW - sub.width) / 2;
-          const childOffsetY = LAYOUT_CONSTANTS.CONTAINER_HEADER_H;
+          const childOffsetY =
+            LAYOUT_CONSTANTS.CONTAINER_HEADER_H + LAYOUT_CONSTANTS.CONTAINER_PAD_TOP;
           const shiftedChildren = reparentImmediateChildren(
             sub.nodes,
             aId,
